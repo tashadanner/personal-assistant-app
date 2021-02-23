@@ -1,37 +1,100 @@
+import json
 
-#imports PersonalAssistant.py file
-from PersonalAssistant import PersonalAssistant
-import json 
+import remi.gui as gui
+from remi import start
+from base_app import BaseApp
 
-#ADD CODE: open JSON file and pass data to PersonalAssistant class
-with open ("todo.json","r") as todos:
-  todo_list = json.load(todos)
-  assistant = PersonalAssistant(todo_list)
+class MyApp(BaseApp):
+    def __init__(self, *args):
+        super(MyApp, self).__init__(*args)
 
-done = False
+    def add_error(self, error):
+      self.errors.append(gui.ListItem(error))
+   
+    def clear_errors (self):
+      self.errors.empty()
 
-while not done:
-  user_command = input("\n\nHow can I help you? \n 1: Add a to-do\n 2: Remove a to-do\n 3: Get to-do list\n 4: Get Birthday \n 5: Get Contact\n 6: Exit\n Select a number: ")
-  if user_command == "1":
-    user_input = input("Item to add to to-do list: ")
-    assistant.add_todo(user_input)
-  elif user_command == "2":
-    user_input = input("Item to remove from to-do list: ")
-    assistant.remove_todo(user_input)
-  elif user_command == "3":
-    print("Your to-do list")
-    print(assistant.get_todo())
-  elif user_command == "4":
-    user_input = input("Enter a name: ")
-    print(assistant.get_birthday(user_input))
-  elif user_command == "5":
-    user_input = input("Enter a name: ")
-    print(assistant.get_contact(user_input))
-  elif user_command == "6":
-    done = True
-  else:
-    print("Not a valid command.")
+    def add_todo(self, widget):
+        todo_item = self.textinput.get_value()
+        if todo_item != "":
+          self.assistant.add_todo(todo_item)
 
-#ADD CODE: write data to JSON file
-with open ("todo.json", "w") as write_file:
-  json.dump(assistant.get_todo(), write_file)
+        with open("todo.json", "w") as write_file:
+            json.dump(self.assistant.get_todo(), write_file)
+        self.reset_dropdown(widget)
+
+    def remove_todo(self, widget):
+        todo_item = self.textinput.get_value()
+        error = self.assistant.remove_todo(todo_item)
+        if error:
+          self.add_error(error)
+
+        with open("todo.json", "w") as write_file:
+            json.dump(self.assistant.get_todo(), write_file)
+        self.reset_dropdown(widget)
+
+    def add_birthday(self, widget):
+        name = self.textinput.get_value()
+        birthday = self.textinput2.get_value()
+        if name != "" and birthday != "":
+            error = self.assistant.add_birthday(name, birthday)
+            if error:
+                self.add_error(error)
+            else:
+                self.reset_dropdown(widget)
+        self.reset_dropdown(widget)
+
+    def remove_birthday(self, widget):
+        name = self.textinput.get_value()
+        error = self.assistant.remove_birthday(name)
+        if error:
+          self.add_error(error)
+
+        self.reset_dropdown(widget)
+
+    def get_birthday(self, widget):
+        self.dialog = gui.GenericDialog(title="Get Birthday", width="500px")
+        name = self.textinput.get_value()
+        result = self.assistant.get_birthday(name)
+        self.label = gui.Label(name + "'s birthday is " + result, width=200, height=30)
+        self.dialog.add_field("label", self.label)
+        self.dialog.cancel_dialog.connect(self.reset_dropdown)
+        self.dialog.show(self)
+        self.reset_dropdown(widget)
+
+    def add_contact(self, widget):
+        self.clear_errors()
+        name = self.textinput.get_value()
+        contact = self.textinput2.get_value()
+        if name != "" and contact != "":
+            error = self.assistant.add_contact(name, contact)
+            if error:
+                self.add_error(error)
+            else:
+                self.reset_dropdown(widget)
+
+    def remove_contact(self, widget):
+        name = self.textinput.get_value()
+        error = self.assistant.remove_contact(name)
+        if error:
+            self.add_error(error)
+        self.reset_dropdown(widget)
+
+    def get_contact(self, widget):
+        self.dialog = gui.GenericDialog(title="Get Contact", width="500px")
+        name = self.textinput.get_value()
+        result = self.assistant.get_contact(name)
+        self.label = gui.Label(name + " is " + result, width=200, height=30)
+        self.dialog.add_field("label", self.label)
+        self.dialog.cancel_dialog.connect(self.reset_dropdown)
+        self.dialog.show(self)
+        self.reset_dropdown(widget)
+
+    def reset_dropdown(self, widget):
+        self.todoDropDown.select_by_value("")
+        self.birthdayDropDown.select_by_value("")
+        self.contactDropDown.select_by_value("")
+
+
+
+start(MyApp, debug=False, address="0.0.0.0", port=3000, multiple_instance=True)
